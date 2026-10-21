@@ -102,7 +102,7 @@ node_t* fileToTree(FILE* fp){
 
 node_t* getNodeFromHash(node_t *tree, unsigned char *hash){
 	if(hash == NULL || tree == NULL){
-		fprintf(stderr, "Erreur en récupérant un noeud de l'arbre.\n");
+		//fprintf(stderr, "Erreur en récupérant un noeud de l'arbre.\n");//test
 		return NULL;
 	}
 

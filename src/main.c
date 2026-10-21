@@ -154,7 +154,6 @@ int generate(char *input, char *output, char *algo){
 		}
 	}
 
-	
 	//Sauvegarde arbre dans fichier t3c_output
 	//treeToFile(fp2, tree);	
 	
@@ -192,7 +191,7 @@ int lookup(char* tab){
 	//Recherche dans l'arbre
 	unsigned char* ligne = (unsigned char*)malloc(MAX_LINE_LENGTH*sizeof(unsigned char));
 	//Lit toutes les lignes de stdin jusqu'à CTRL+D ou EOF
-    while(fscanf(stdin, "%2047[^\n]", ligne) == 1) {
+    while(fscanf(stdin, "%2047[^\n]", ligne) >= 1) {//1 variable ou plus affectée (nous on attend 1 seule, le hash)
 		//"consommation" du \n et le reste éventuel de la ligne pour passer à la ligne suivante
 		int c;
 		while ((c = getchar()) != '\n' && c != EOF) {
@@ -207,9 +206,7 @@ int lookup(char* tab){
 			//Cas où il trouve le hash, affiche le mdp correspondant
 			printf("%s\n", noeud_correspondant->mdp);
 		}
-		
     }
-	
 	
 	//Libération mémoire
 	free(ligne);
@@ -218,7 +215,6 @@ int lookup(char* tab){
 	tree=NULL;
 	fclose(fp);
 	fp=NULL;
-	printf("fin\n");
 	
 	return 0;
 }
