@@ -31,7 +31,9 @@ Pour tous les modes:
 Le makefile produit, avec make à la racine, un exécutable nommé t3c à la racine du dépôt.
 ```bash
 cd digest-generation-search
-make
+make build
+make compile
+make run #(ou manuellement pour les arguments)
 ```
 
 Pour lancer le programme:
