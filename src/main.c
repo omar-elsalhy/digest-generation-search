@@ -1,15 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <openssl/evp.h>
 #include <getopt.h>
 #include "binaryTree.h"
 
-
-//https://linux.die.net/man/3/evp_md5
-char* generateMD5(char* mdp){
-
-	return NULL;
-}
+#define MAX_LINE_LENGTH 2048
 
 
 char getMode(int argc, char* argv[]){
@@ -30,6 +26,7 @@ char getMode(int argc, char* argv[]){
 }
 
 
+
 void usage(){
 	printf("\nUtilisation:\n\n");
 	printf("Mode G\n./t3c G -i <dictionnaire> -o <t3c_output> [-a <algo>]\n");
@@ -39,30 +36,193 @@ void usage(){
 }
 
 
+
+//Génère le condensat d'une chaîne de caractères passée en paramètres
+unsigned char* generateMD5(unsigned char* mdp){
+	unsigned char *condensat = (unsigned char*)malloc(EVP_MAX_MD_SIZE * sizeof(unsigned char));
+	unsigned int len;//=16 (2*16 = 32 octets MD5)
+	
+	if (EVP_Digest(mdp, strlen((const char *)mdp) - 1, condensat, &len, EVP_md5(), NULL) != 1) {
+		fprintf(stderr, "Erreur dans le calcul du MD5.\n");
+		free(condensat);
+		condensat=NULL;
+		return NULL;
+	}
+	
+	return condensat;
+}
+
+
+
+void md5HashToHex(unsigned char *hash, unsigned char *hash_hexa){
+	char hexa[] = "0123456789abcdef";
+	for (int i=0; i<16; i++){
+		hash_hexa[2*i] = hexa[(hash[i] & 0xF0) >> 4 ];
+		hash_hexa[2*i + 1] = hexa[(hash[i] & 0x0F) ];
+	}
+	hash_hexa[32]='\0';
+	return;
+}
+
+
+
+//Génération des hash, insertion dans arbre binaire, sauvegarde arbre dans fichier t3c_output
 int generate(char *input, char *output, char *algo){
 	if(!input || !output || !algo){
 		fprintf(stderr, "Impossible de générer les condensats. Le nom d'un des fichiers ou de l'algo est NULL.\n");
-		exit(EXIT_FAILURE);
+		return 1;
+	}
+	
+	//Un seul algo pour le moment
+	if(strcmp(algo, "MD5") != 0){
+		fprintf(stderr, "Algo spécifié inconnu.\n");
+		return 1;
 	}
 	
 	
+	//Fichier de dictionnaire
+	FILE *fp = NULL;
+	fp = fopen(input, "r");
+	if(fp == NULL){
+		fprintf(stderr, "Erreur à l'ouverture du fichier .\n");
+		return 1;
+	}
 	
 	
+	//Fichier d'output
+	FILE *fp2 = NULL;
+	fp2 = fopen(output, "w");
+	if(fp2 == NULL){
+		fprintf(stderr, "Erreur à l'ouverture du fichier .\n");
+		return 1;
+	}
 	
 	
+	//Variable pour stocker les lignes lues dans le fichier de dictionnaire
+	unsigned char* ligne = (unsigned char*)malloc(MAX_LINE_LENGTH*sizeof(unsigned char));
+
+
+	//Arbre binaire pour stocker les infos (algo, mdp, hash)
+	//node_t *tree = NULL;
 	
+	//Ici, fscanf lit tous les caractères de la ligne jusqu'au \n, puis consomme le \n. La ligne lue aura au maximum 2048 caractères en comptant le \0.
+	//(fscanf(fp, "%2047[^\n]\n", ligne))
+	//brouillon - ne marche pas avec la dernière ligne
+	/*while((fscanf(fp, "%2047[^\n]\n", ligne)) != EOF){
+		//Process le hash et insertion dans l'arbre binaire
+		unsigned char *hash = generateMD5(ligne);
+		if(hash != NULL){
+			printf("%s\n", ligne);
+			for (int i=0; i<strlen((const char *)hash); i++){
+				printf("%02x", hash[i]);
+			}
+			printf("\n");
+		}
+	}*/
+	
+	
+	//Je préfère savoir si la ligne a été entièrement lue:
+	while( (fscanf(fp, "%2047[^\n]", ligne)) != EOF){
+		//"consommation" du \n et le reste éventuel de la ligne pour passer à la ligne suivante
+		int c = fgetc(fp);
+		if (c!='\n'){
+			fprintf(stderr, "Ligne trop longue ou impossible à lire. Limite de ligne %d caractères.\n", MAX_LINE_LENGTH - 1);
+			while((c = fgetc(fp)) != '\n' && c != EOF){
+				;//ne fait rien, consomme le reste des caractères de la ligne
+			}
+		}
+		else{
+			//Process le hash et insertion dans le fichier t3c_output (//dans l'arbre binaire, non directement dans le fichier t3c_output)
+			unsigned char *hash = generateMD5(ligne);
+			unsigned char *hash_hexa = (unsigned char *)malloc(EVP_MAX_MD_SIZE*sizeof(unsigned char));
+			//unsigned char *mdp = (unsigned char*)malloc(MAX_LINE_LENGTH*sizeof(unsigned char));
+			
+			//Je copie la ligne lue dans mdp pour la garder
+			//memcpy(mdp, ligne, 2048);
+			
+			if(hash != NULL && hash_hexa != NULL){ //&& mdp != NULL){
+				md5HashToHex(hash, hash_hexa);
+				fprintf(fp2, "%s\n%s\n%s\n", algo, hash_hexa, ligne);
+				//tree = insertNode(tree, mdp, hash_hexa, algo);
+			}
+			
+			//plus besoin du condensat au format string
+			free(hash);
+			hash=NULL;
+			free(hash_hexa);
+			hash_hexa = NULL;
+		}
+	}
+
+	
+	//Sauvegarde arbre dans fichier t3c_output
+	//treeToFile(fp2, tree);	
+	
+	//Free les pointeurs (l'arbre)
+	//freeTree(tree);
+	//tree=NULL;
+	free(ligne);
+	ligne=NULL;
+	fclose(fp);
+	fp=NULL;
+	fclose(fp2);
+	fp2 = NULL;
 	
 	return 0;
 }
 
 
 
+
+//Recherche de condensats dans arbre binaire
 int lookup(char* tab){
+	//Fichier de correspondances condensats-mdp
+	FILE *fp = NULL;
+	fp = fopen(tab, "r");
+	if(fp == NULL){
+		fprintf(stderr, "Erreur à l'ouverture du fichier.\n");
+		return 1;
+	}
+	
+	//Arbre binaire pour stocker les infos (algo, mdp, hash)
+	node_t *tree = NULL;
+	tree = fileToTree(fp);
+	//printTree(tree);//juste pour tester
+	
+	//Recherche dans l'arbre
+	unsigned char* ligne = (unsigned char*)malloc(MAX_LINE_LENGTH*sizeof(unsigned char));
+	//Lit toutes les lignes de stdin jusqu'à CTRL+D ou EOF
+    while(fscanf(stdin, "%2047[^\n]", ligne) == 1) {
+		//"consommation" du \n et le reste éventuel de la ligne pour passer à la ligne suivante
+		int c;
+		while ((c = getchar()) != '\n' && c != EOF) {
+			//Ne fait rien (consomme le reste de la ligne)
+		}
+		node_t *noeud_correspondant = getNodeFromHash(tree, ligne);
+		if(noeud_correspondant == NULL){
+			//Cas où il ne trouve pas le hash, affiche ligne vide
+			printf("\n");
+		}
+		else{
+			//Cas où il trouve le hash, affiche le mdp correspondant
+			printf("%s\n", noeud_correspondant->mdp);
+		}
+		
+    }
 	
 	
+	//Libération mémoire
+	free(ligne);
+	ligne=NULL;
+	freeTree(tree);
+	tree=NULL;
+	fclose(fp);
+	fp=NULL;
+	printf("fin\n");
 	
 	return 0;
 }
+
 
 
 
@@ -112,7 +272,7 @@ int main(int argc, char* argv[]){
 					}
 					else{
 						fprintf(stderr, "Vous n'avez pas spécifié le fichier dictionnaire.\n\n");
-						usage();
+						//usage();
 						exit(EXIT_FAILURE);
 					}
 					break;
@@ -123,7 +283,7 @@ int main(int argc, char* argv[]){
 					}
 					else{
 						fprintf(stderr, "Vous n'avez pas spécifié le fichier de sortie pour sauvegarder les condensats.\n\n");
-						usage();
+						//usage();
 						exit(EXIT_FAILURE);
 					}
 					break;
@@ -134,15 +294,19 @@ int main(int argc, char* argv[]){
 					}
 					else{
 						fprintf(stderr, "Vous n'avez pas spécifié l'algorithme en option.\nIl n'est pas obligatoire (MD5 par défaut), mais vous avez spécifié l'option sans arguments.\n\n");
-						usage();
+						//usage();
 						exit(EXIT_FAILURE);
 					}
 					break;
 				case '?':
 					fprintf(stderr, "Option inconnue ou argument manquant.\n\n");
+					//usage();
+					exit(EXIT_FAILURE);
 					break;
 				default:
 					fprintf(stderr, "Option inconnue.\n\n");
+					//usage();
+					exit(EXIT_FAILURE);
 					break;
 			}
 		}
@@ -154,18 +318,20 @@ int main(int argc, char* argv[]){
 		
 		if(dico_specifie != 1){
 			fprintf(stderr, "Vous n'avez pas spécifié le fichier dictionnaire.\n");
-			usage();
+			//usage();
 			exit(EXIT_FAILURE);
 		}
 		
 		if(t3c_out_specifie !=1){
 			fprintf(stderr, "Vous n'avez pas spécifié le fichier output de condensats.\n");
-			usage();
+			//usage();
 			exit(EXIT_FAILURE);
 		}
 		
 		//Mode generation de condensats
-		generate(dictionnaire, t3c_output, algo);
+		if(generate(dictionnaire, t3c_output, algo) != 0){
+			exit(EXIT_FAILURE);
+		}
 	}
 	
 	
@@ -180,22 +346,26 @@ int main(int argc, char* argv[]){
 					}
 					else{
 						fprintf(stderr, "Vous n'avez pas spécifié le fichier table de correspondances MDP-hash.\n\n");
-						usage();
+						//usage();
 						exit(EXIT_FAILURE);
 					}
 					break;
 				case '?':
 					fprintf(stderr, "Option inconnue ou argument manquant.\n\n");
+					//usage();
+					exit(EXIT_FAILURE);
 					break;
 				default:
 					fprintf(stderr, "Option inconnue.\n\n");
+					//usage();
+					exit(EXIT_FAILURE);
 					break;
 			}
 		}
 		
 		if(table_specifiee != 1){
 			fprintf(stderr, "Vous n'avez pas spécifié le fichier table de correspondances MDP-hash.\n");
-			usage();
+			//usage();
 			exit(EXIT_FAILURE);
 		}
 		
@@ -203,30 +373,6 @@ int main(int argc, char* argv[]){
 		lookup(table);
 	}
 
-	//exit(EXIT_SUCCESS);
-
-
-
-	// Brouillon
-	
-	unsigned char password[] = "test";
-	unsigned char condensat[EVP_MAX_MD_SIZE];
-	unsigned int len;
-	
-	
-
-	if (EVP_Digest(password, sizeof(password) - 1,
-				   condensat, &len, EVP_md5(), NULL) != 1) {
-		fprintf(stderr, "MD5 calculation failed\n");
-		return 1;
-	}
-
-
-	//Affichage du résultat (le condensat du mdp):
-	for (int i=0; i<len; i++){
-		printf("%02x", condensat[i]);
-	}
-	printf("\n");
-	return 0;
-
+	exit(EXIT_SUCCESS);
+	//return 0;
 }
