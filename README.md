@@ -115,5 +115,3 @@ Dû à la limitation de fscanf, j'ai choisi de fixer la taille maximale d'une li
 Aussi, comme le séparateur est une ligne vide, le fichier dictionnaire doit impérativement se terminer par une ligne vide. Sinon, le dernier condensat du fichier ne sera pas valide.
 
 
-
-PS: Makefile et Dockerfile non vérifiés pour le moment.
