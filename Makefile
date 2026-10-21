@@ -4,13 +4,13 @@ build:
 	docker build . -t ggc-openssl-image:v1
 
 compile:
-	#docker run --rm -it -v "$(realpath ./src/)":/usr/src/myapp -w /usr/src/myapp ggc-openssl-image:v1 gcc -Wall *.c -o myapp
-	#docker run --rm -it -v "$(CURDIR)/src/:/usr/src/myapp" -w /usr/src/myapp ggc-openssl-image:v1 gcc -Wall *.c -o ../t3c -lcrypto
 	docker run --rm -it -v "$(PWD):/usr/src/myapp" -w /usr/src/myapp ggc-openssl-image:v1 gcc -Wall ./src/main.c ./src/binaryTree.c -o ./t3c -lcrypto
 
 run:
 	./t3c
 
+clean:
+	rm ./t3c
 
 
 #Brouillon Makefile (si le Makefile faisait la compilation seulement)
