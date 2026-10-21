@@ -29,6 +29,13 @@ Pour tous les modes:
 ## Prototypes d'appels
 
 Le makefile produit, avec make à la racine, un exécutable nommé t3c à la racine du dépôt.
+```bash
+cd digest-generation-search
+make
+```
+
+Pour lancer le programme:
+
 Le mode est le premier argument positionnel :
 `./t3c <G|L> [options]`
 
